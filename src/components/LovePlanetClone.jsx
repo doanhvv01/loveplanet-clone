@@ -1,13 +1,14 @@
+// LovePlanetClone.jsx
 import React, { useRef, useState, useEffect, useMemo, Suspense } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, useTexture, Stars } from "@react-three/drei";
 import * as THREE from "three";
 
-// ====== Cấu hình ======
+// ====== Config ======
 const IMAGES = Array.from({ length: 34 }, (_, i) => `/images/img${i + 1}.jpg`);
 const AUDIO_URL = "/audio/Kho Báu (with Rhymastic).mp3";
 
-// ====== Hook double click bật/tắt nhạc ======
+// ====== Double click music ======
 function useDoubleClick(callback, latency = 250) {
   const clickRef = useRef(0);
   useEffect(() => {
@@ -21,10 +22,18 @@ function useDoubleClick(callback, latency = 250) {
   }, [callback, latency]);
 }
 
-// ====== Hành tinh chấm đỏ ======
-function DotPlanet({ radius = 0.7, count = 7000, rotationSpeed = 0.0008, shakeIntensity = 0.01 }) {
-  const geo = useMemo(() => new THREE.SphereGeometry(0.008, 6, 6), []);
-  const mat = useMemo(() => new THREE.MeshStandardMaterial({ color: "red", emissive: "red", emissiveIntensity: 0.7 }), []);
+// ====== Planet (dense red dots) ======
+function DotPlanet({ radius = 0.7, count = 8000, rotationSpeed = 0.0005 }) {
+  const geo = useMemo(() => new THREE.SphereGeometry(0.005, 6, 6), []);
+  const mat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: "red",
+        emissive: "red",
+        emissiveIntensity: 0.25,
+      }),
+    []
+  );
 
   const positions = useMemo(() => {
     const temp = [];
@@ -43,16 +52,8 @@ function DotPlanet({ radius = 0.7, count = 7000, rotationSpeed = 0.0008, shakeIn
   }, [count, radius]);
 
   const ref = useRef();
-  useFrame(({ clock }) => {
+  useFrame(() => {
     ref.current.rotation.y += rotationSpeed;
-
-    // thêm hiệu ứng rung rinh
-    const time = clock.getElapsedTime();
-    ref.current.children.forEach((mesh, i) => {
-      mesh.position.x += (Math.random() - 0.5) * shakeIntensity;
-      mesh.position.y += (Math.random() - 0.5) * shakeIntensity;
-      mesh.position.z += (Math.random() - 0.5) * shakeIntensity;
-    });
   });
 
   return (
@@ -64,18 +65,22 @@ function DotPlanet({ radius = 0.7, count = 7000, rotationSpeed = 0.0008, shakeIn
   );
 }
 
-
-// ====== Ảnh quanh hành tinh ======
-function ImageBillboard({ url, radiusBase = 2, radiusSpread = 1, heightSpread = 0.2, speed = 0.01 }) {
+// ====== Orbiting images ======
+function ImageBillboard({
+  url,
+  radiusBase = 2.5,
+  radiusSpread = 1.5,
+  heightSpread = 0.3,
+  speed = 0.01,
+}) {
   const texture = useTexture(url);
   const ref = useRef();
   const angle0 = useMemo(() => Math.random() * Math.PI * 2, []);
   const radius = useMemo(() => radiusBase + Math.random() * radiusSpread, []);
-  const y = useMemo(() => (Math.random() - 0.05) * heightSpread, []);
+  const y = useMemo(() => (Math.random() - 0.5) * heightSpread, []);
 
   useFrame((state) => {
-    // đảo chiều quay: thêm dấu âm trước elapsedTime
-    const t = -state.clock.getElapsedTime() * speed; 
+    const t = state.clock.getElapsedTime() * speed;
     const a = angle0 + t;
     ref.current.position.set(Math.cos(a) * radius, y, Math.sin(a) * radius);
     ref.current.lookAt(state.camera.position);
@@ -83,129 +88,94 @@ function ImageBillboard({ url, radiusBase = 2, radiusSpread = 1, heightSpread = 
 
   return (
     <mesh ref={ref}>
-      <planeGeometry args={[0.11, 0.11]} />
+      <planeGeometry args={[0.3, 0.3]} /> {/* to hơn 3 lần */}
       <meshBasicMaterial map={texture} transparent side={THREE.DoubleSide} />
     </mesh>
   );
 }
 
 function ImageBelt({ images }) {
-  const imgs = [...images, ...images, ...images, ...images, ...images]; // nhân 5 lần
+  const imgs = [...images, ...images]; // nhân đôi thôi cho vừa
   return <>{imgs.map((url, i) => <ImageBillboard key={i} url={url} />)}</>;
 }
 
+// ====== Rings (pink + red) ======
+function DotRingFull() {
+  const pinkGeo = useMemo(() => new THREE.SphereGeometry(0.005, 6, 6), []);
+  const pinkMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: "#ff69b4",
+        emissive: "#ff69b4",
+        emissiveIntensity: 0.4,
+      }),
+    []
+  );
 
-// ====== Vành đai chấm đỏ + hồng ======
-function DotRing({
-  radiusInner = 0,
-  radiusOuterRed = 5,
-  radiusOuterPink = 2.5,
-  countPink = 15000,
-  countRed = 8000
-}) {
-  const pinkGeo = useMemo(() => new THREE.SphereGeometry(0.006, 6, 6), []);
-  const pinkMat = useMemo(() => new THREE.MeshStandardMaterial({ color: "pink", emissive: "pink", emissiveIntensity: 0.6 }), []);
-  const redGeo = useMemo(() => new THREE.SphereGeometry(0.008, 6, 6), []);
-  const redMat = useMemo(() => new THREE.MeshStandardMaterial({ color: "red", emissive: "red", emissiveIntensity: 0.5 }), []);
+  const redGeo = useMemo(() => new THREE.SphereGeometry(0.006, 6, 6), []);
+  const redMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: "red",
+        emissive: "red",
+        emissiveIntensity: 0.2,
+      }),
+    []
+  );
 
-  // const pinkDots = useMemo(() => {
-  //   const temp = [];
-  //   for (let i = 0; i < countPink; i++) {
-  //     const angle = Math.random() * 2 * Math.PI;
-  //     const radius = radiusInner + 1.5 + Math.random() * (radiusOuterPink - 1);
-  //     const y = (Math.random() - 0.5) * 0.05;
-  //     const x = Math.cos(angle) * radius;
-  //     const z = Math.sin(angle) * radius;
-  //     temp.push([x, y, z]);
-  //   }
-  //   return temp;
-  // }, [countPink, radiusInner, radiusOuterPink]);
   const pinkDots = useMemo(() => {
-  const temp = [];
-  for (let i = 0; i < countPink; i++) {
-    const angle = Math.random() * 2 * Math.PI;
-
-    // radius tập trung gần viền trong
-    const rNorm = Math.pow(Math.random(), 2); // giá trị 0-1 nhưng gần 0 nhiều hơn
-    const radius = radiusInner + 1.5 + rNorm * (radiusOuterPink - 1);
-
-    const y = (Math.random() - 0.5) * 0.05;
-    const x = Math.cos(angle) * radius;
-    const z = Math.sin(angle) * radius;
-    temp.push([x, y, z]);
-  }
-  return temp;
-}, [countPink, radiusInner, radiusOuterPink]);
-
+    const arr = [];
+    for (let i = 0; i < 4000; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 1.2 + Math.random() * 0.8; // dense inner pink
+      const y = (Math.random() - 0.5) * 0.1;
+      arr.push([Math.cos(angle) * radius, y, Math.sin(angle) * radius]);
+    }
+    return arr;
+  }, []);
 
   const redDots = useMemo(() => {
-    const temp = [];
-    for (let i = 0; i < countRed; i++) {
-      const angle = Math.random() * 2 * Math.PI;
-      const radius = radiusInner + Math.random() * (radiusOuterRed - radiusInner);
-      const y = (Math.random() - 0.5) * 0.1;
-      const x = Math.cos(angle) * radius;
-      const z = Math.sin(angle) * radius;
-      temp.push([x, y, z]);
+    const arr = [];
+    for (let i = 0; i < 6000; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 2 + Math.random() * 2;
+      const y = (Math.random() - 0.5) * 0.2;
+      arr.push([Math.cos(angle) * radius, y, Math.sin(angle) * radius]);
     }
-    return temp;
-  }, [countRed, radiusInner, radiusOuterRed]);
+    return arr;
+  }, []);
 
   const ref = useRef();
   useFrame(() => {
-    ref.current.rotation.y += 0.005; // nhẹ quay
+    ref.current.rotation.y += 0.0015; // quay chậm
   });
 
   return (
     <group ref={ref}>
-      {pinkDots.map((pos, i) => <mesh key={`pink-${i}`} geometry={pinkGeo} material={pinkMat} position={pos} />)}
-      {redDots.map((pos, i) => <mesh key={`red-${i}`} geometry={redGeo} material={redMat} position={pos} />)}
+      {pinkDots.map((pos, i) => (
+        <mesh key={`pink-${i}`} geometry={pinkGeo} material={pinkMat} position={pos} />
+      ))}
+      {redDots.map((pos, i) => (
+        <mesh key={`red-${i}`} geometry={redGeo} material={redMat} position={pos} />
+      ))}
     </group>
   );
 }
 
-// ====== Galaxy + mưa sao băng hồng ======
-function ShootingStar() {
-  const ref = useRef();
-  const start = useMemo(() => ({
-    x: (Math.random() - 0.5) * 50,
-    y: Math.random() * 30 - 10,
-    z: (Math.random() - 0.5) * 50
-  }), []);
-  const velocity = useMemo(() => ({
-    x: 0.5 + Math.random() * 0.5,
-    y: -0.2 - Math.random() * 0.1,
-    z: 0
-  }), []);
-
-  useFrame((_, delta) => {
-    if (!ref.current) return;
-    ref.current.position.x += delta * velocity.x;
-    ref.current.position.y += delta * velocity.y;
-    if (ref.current.position.y < -15) ref.current.position.set(start.x, start.y, start.z);
-  });
-
-  return (
-    <mesh ref={ref} position={[start.x, start.y, start.z]}>
-      <coneGeometry args={[0.01, 0.2, 8]} />
-      <meshBasicMaterial color="pink" />
-    </mesh>
-  );
-}
-
+// ====== Galaxy ======
 function Galaxy() {
   return (
     <group>
-      <Stars radius={50} depth={50} count={2000} factor={2} saturation={0} fade color="pink" />
-      {Array.from({ length: 50 }).map((_, i) => <ShootingStar key={i} />)}
+      <Stars radius={80} depth={100} count={4000} factor={3} saturation={0} fade color="pink" />
     </group>
   );
 }
 
-// ====== Main Component ======
-export default function LovePlanet() {
+// ====== Main ======
+export default function LovePlanetClone() {
   const audioRef = useRef(null);
   const [playing, setPlaying] = useState(false);
+
   useDoubleClick(() => {
     if (!audioRef.current) {
       audioRef.current = new Audio(AUDIO_URL);
@@ -222,16 +192,16 @@ export default function LovePlanet() {
 
   return (
     <div className="w-screen h-screen bg-black overflow-hidden">
-      <Canvas className="w-full h-full" camera={{ position: [0, 2.5, 6], fov: 60 }}>
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[5, 10, 5]} intensity={1.5} />
+      <Canvas className="w-full h-full" camera={{ position: [0, 2, 6], fov: 60 }}>
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[5, 10, 5]} intensity={2} />
         <Suspense fallback={null}>
           <DotPlanet />
-          <DotRing />
+          <DotRingFull />
           <ImageBelt images={IMAGES} />
           <Galaxy />
         </Suspense>
-        <OrbitControls enablePan={false} />
+        <OrbitControls enablePan={false} enableZoom={false} />
       </Canvas>
     </div>
   );
